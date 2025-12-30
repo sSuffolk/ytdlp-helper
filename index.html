@@ -66,7 +66,7 @@
             color: white;
             box-sizing: border-box;
             font-size: 1rem;
-            font-family: monospace; /* Monospace for precision */
+            font-family: monospace;
             outline: none;
             transition: border-color 0.2s;
         }
@@ -158,8 +158,13 @@
         <h1>CMD <span>GENERATOR</span></h1>
         
         <div class="form-group">
-            <label for="url">Stream URL (Twitch, Kick, YouTube)</label>
-            <input type="url" id="url" placeholder="Paste link here..." oninput="generateCmd()">
+            <label for="url">Stream URL</label>
+            <input type="url" id="url" placeholder="https://twitch.tv/..." oninput="generateCmd()">
+        </div>
+
+        <div class="form-group">
+            <label for="filename">File Name (Optional)</label>
+            <input type="text" id="filename" placeholder="e.g. WarzoneClip1" oninput="generateCmd()">
         </div>
 
         <div class="toggle-container">
@@ -179,19 +184,16 @@
         </div>
 
         <div class="output-area">
-            <label>Your Command (Copy this into CMD):</label>
+            <label>Your Command (Auto-Saves to Desktop):</label>
             <div class="command-box" id="cmdOutput">Waiting for input...</div>
             <button onclick="copyToClipboard()">COPY COMMAND</button>
         </div>
     </div>
 
     <script>
-        // 1. Auto-Format Time Logic (Adds colons automatically)
+        // 1. Auto-Format Time Logic
         function formatTime(input) {
-            // Remove any character that is NOT a number
             let val = input.value.replace(/\D/g, '');
-            
-            // Rebuild string with colons
             if (val.length > 4) {
                 input.value = val.substring(0, 2) + ':' + val.substring(2, 4) + ':' + val.substring(4, 6);
             } else if (val.length > 2) {
@@ -201,11 +203,10 @@
             }
         }
 
-        // 2. Toggle Time Inputs based on Checkbox
+        // 2. Toggle Inputs
         function toggleTimestamps() {
             const checkBox = document.getElementById("fullStream");
             const timeRow = document.getElementById("timestampRow");
-            
             if (checkBox.checked) {
                 timeRow.classList.add("disabled");
             } else {
@@ -213,9 +214,10 @@
             }
         }
 
-        // 3. Generate the Command Line String
+        // 3. Generate the Command
         function generateCmd() {
             const url = document.getElementById("url").value.trim();
+            const filename = document.getElementById("filename").value.trim().replace(/ /g, "_"); // Replace spaces with underscores
             const fullStream = document.getElementById("fullStream").checked;
             const start = document.getElementById("start").value;
             const end = document.getElementById("end").value;
@@ -229,20 +231,30 @@
 
             output.style.color = "var(--success-color)";
             
-            // Build command
-            if (fullStream) {
-                // Command for downloading the whole thing
-                output.textContent = `yt-dlp "${url}"`;
+            // Base parts
+            // -P sets the path to Desktop
+            // -o sets the filename. %(ext)s preserves mp4/mkv automatically.
+            let pathPart = `-P "%USERPROFILE%\\Desktop"`;
+            let namePart = "";
+
+            if (filename) {
+                namePart = `-o "${filename}.%(ext)s"`;
             } else {
-                // Command for specific timestamp
-                // Default to 00:00:00 if empty to prevent errors
+                // If no name, let it use title but force desktop path
+                namePart = `-o "%(title)s.%(ext)s"`;
+            }
+
+            // Build final command
+            if (fullStream) {
+                output.textContent = `yt-dlp ${pathPart} ${namePart} "${url}"`;
+            } else {
                 const safeStart = start || "00:00:00";
                 const safeEnd = end || "00:01:00";
-                output.textContent = `yt-dlp --download-sections "*${safeStart}-${safeEnd}" "${url}"`;
+                output.textContent = `yt-dlp ${pathPart} ${namePart} --download-sections "*${safeStart}-${safeEnd}" "${url}"`;
             }
         }
 
-        // 4. Copy to Clipboard Function
+        // 4. Copy Function
         function copyToClipboard() {
             const cmdText = document.getElementById("cmdOutput").textContent;
             if (cmdText === "Waiting for input...") return;
@@ -251,11 +263,10 @@
                 const btn = document.querySelector("button");
                 const originalText = btn.textContent;
                 btn.textContent = "COPIED!";
-                btn.style.backgroundColor = "#00e676"; // Green success
-                
+                btn.style.backgroundColor = "#00e676"; 
                 setTimeout(() => {
                     btn.textContent = originalText;
-                    btn.style.backgroundColor = ""; // Reset
+                    btn.style.backgroundColor = ""; 
                 }, 1500);
             });
         }
